@@ -4,7 +4,7 @@
   "description": "A headless Discord-RPC client for Destiny 2",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 0",
+    "test": "echo \"Error: no test specified\" && exit 1",
     "semantic-release": "semantic-release"
   },
   "repository": {
@@ -17,8 +17,13 @@
     "url": "https://github.com/louis-bompart/refactored-happiness/issues"
   },
   "homepage": "https://github.com/louis-bompart/refactored-happiness#readme",
-  "dependencies": {},
+  "dependencies": {
+    "discord-rpc": "^3.0.2"
+  },
   "devDependencies": {
+    "@types/discord-rpc": "^3.0.1",
+    "@types/node": "^12.0.10",
+    "bungie-api-ts": "^2.0.0",
     "cz-conventional-changelog": "^2.1.0",
     "semantic-release": "^15.13.18"
   },
