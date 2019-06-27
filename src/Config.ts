@@ -1,121 +1,179 @@
 import * as os from "os";
 import * as fs from "fs";
 import * as path from "path";
-import * as readline from "readline";
-import { get } from "./Utils";
-import { UserInfoCard } from "bungie-api-ts/user/interfaces";
+import { prompt, Questions } from "inquirer";
+import { get, isValidPlatform } from "./Utils";
 import { BungieMembershipType } from "bungie-api-ts/common";
+import { ENOENT } from "constants";
 
-const CONFIG_FOLDER_NAME = "ghost-discord";
-const CONFIG_FILE_NAME = "config.json";
-const CONFIG_FILE_PATH = path.join(
-  os.homedir(),
-  CONFIG_FOLDER_NAME,
-  CONFIG_FILE_NAME
-);
-
-function hasConfigFile() {
-  try {
-    fs.accessSync(CONFIG_FILE_PATH, fs.constants.W_OK);
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
-
-function generateConfig(): ConfigFile {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-  const configFile: ConfigFile = {
-    platform: undefined,
-    playerId: undefined,
-    apiKey: undefined
-  };
-
-  while (!configFile.platform) {
-    rl.question(
-      `On which platform do you play?
-    Accepted answers: pc, playstation, xbox`,
-      answer => {
-        answer.trim().toLowerCase();
-        switch (answer) {
-          case "pc":
-            configFile.platform = BungieMembershipType.TigerBlizzard;
-            break;
-          case "playstation":
-            configFile.platform = BungieMembershipType.TigerPsn;
-            break;
-          case "xbox":
-            configFile.platform = BungieMembershipType.TigerXbox;
-          default:
-            break;
-        }
-      }
-    );
-  }
-
-  while (!configFile.playerId) {
-    rl.question(
-      "What is your BattleTag/PlaystationID/Gamertag?",
-      async answer => {
-        let playerIdsResponse = await get(
-          {
-            uri: `/Destiny2/SearchDestinyPlayer/${
-              BungieMembershipType.All
-            }/${answer}`
-          },
-          configFile.apiKey
-        );
-        if (
-          playerIdsResponse.Response &&
-          playerIdsResponse.Response.length > 0
-        ) {
-          configFile.playerId = playerIdsResponse.Response[0].membershipId;
-          configFile.platform = playerIdsResponse.Response[0].membershipType;
-        }
-      }
-    );
-  }
-  rl.close();
-  return configFile;
-}
-
-function getConfig(): ConfigFile {
-  if (hasConfigFile()) {
-    const configFile = JSON.parse(fs.readFileSync(CONFIG_FILE_PATH).toString());
-    if (isConfigFile(configFile)) {
-      return configFile;
-    }
-    fs.unlinkSync(CONFIG_FILE_PATH);
-  }
-  const configFile = generateConfig();
-  fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(configFile));
-  return configFile;
-}
-
-export interface ConfigFile {
-  platform: BungieMembershipType;
+/**
+ * Minimal data required to get meaningful info on the user.
+ */
+export type ConfigFileData = {
   playerId: string;
   apiKey: string;
-}
+  platform: BungieMembershipType;
+};
 
-function isConfigFile(obj: any): obj is ConfigFile {
-  if (!obj.playerId || !obj.apiKey) {
-    return false;
+/**
+ * Config-factory. Either get one from a path, or create a new one from user inputs.
+ */
+export class ConfigFile {
+  //#region Config file paths.
+  private static CONFIG_FOLDER_NAME = "ghost-discord";
+  private static CONFIG_FILE_NAME = "config.json";
+  private static CONFIG_FILE_PATH = path.join(
+    os.homedir(),
+    ConfigFile.CONFIG_FOLDER_NAME,
+    ConfigFile.CONFIG_FILE_NAME
+  );
+  //#endregion
+
+  /**
+   * The data of the user, useful for querying Bungie API.
+   */
+  private _data: ConfigFileData;
+  public get data(): ConfigFileData {
+    return this._data;
   }
-  return isValidPlatform(obj.platform);
-}
+  public set data(v: ConfigFileData) {
+    this._data = v;
+  }
 
-function isValidPlatform(
-  platform: string
-): platform is "pc" | "xbox" | "playstation" {
-  return platform !== "pc" && platform !== "xbox" && platform !== "playstation";
-}
+  //#region Factories & constructor
+  /**
+   * Create a new ConfigFile from scratch
+   */
+  public static async createNewConfig(): Promise<ConfigFile> {
+    const answers = await ConfigFile.getInfoFromUser();
+    const apiKey: string = answers.API_KEY;
+    const { playerId, platform } = await ConfigFile.getPlayerIdFromPlayerName(
+      answers.PLAYER_NAME,
+      apiKey
+    );
+    const configFileData = {
+      platform: platform,
+      apiKey: apiKey,
+      playerId: playerId
+    };
+    ConfigFile.writeConfig(configFileData);
+    return new ConfigFile(configFileData);
+  }
 
-function start() {
-  const config = getConfig();
-}
+  /**
+   * Try to load the config file in the User directory.
+   */
+  public static getExistingConfig(): Promise<ConfigFile> {
+    return this.getConfigFromPath(this.CONFIG_FILE_PATH);
+  }
 
-console.log(hasConfigFile());
+  /**
+   * Try to load the config from file, will create a new one if none is found
+   * or if it is corrupted.
+   * @param path the path to try to load
+   */
+  public static getConfigFromPath(path: string): Promise<ConfigFile> {
+    if (this.hasConfigFile(path)) {
+      const configFile = JSON.parse(
+        fs.readFileSync(ConfigFile.CONFIG_FILE_PATH).toString()
+      );
+      if (ConfigFile.isConfigFileValid(configFile)) {
+        console.log("Config file found");
+        return Promise.resolve(new ConfigFile(configFile));
+      }
+      console.warn("Config file is corrupted, deleting...");
+      fs.unlinkSync(ConfigFile.CONFIG_FILE_PATH);
+    }
+    return ConfigFile.createNewConfig();
+  }
+
+  private constructor(configFileData: ConfigFileData) {
+    this.data = configFileData;
+  }
+  //#endregion
+
+  //#region File Manipulation functions
+  private static hasConfigFile(configFilePath: string) {
+    try {
+      fs.accessSync(configFilePath, fs.constants.R_OK);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  private static isConfigFileValid(obj: any): obj is ConfigFileData {
+    if (!obj.playerId || !obj.apiKey) {
+      return false;
+    }
+    return isValidPlatform(obj.platform);
+  }
+
+  private static writeConfig(configFileData: ConfigFileData) {
+    const fullDirPath = path.join(os.homedir(), this.CONFIG_FOLDER_NAME);
+    try {
+      fs.statSync(fullDirPath);
+    } catch (error) {
+      fs.mkdirSync(fullDirPath);
+    }
+    try {
+      fs.statSync(this.CONFIG_FILE_PATH);
+    } catch (error) {
+      if (error.code !== "ENOENT") {
+        throw error;
+      }
+      fs.writeFileSync(this.CONFIG_FILE_PATH, configFileData);
+    }
+  }
+  //#endregion
+
+  /**
+   * Prompt some questions to the user to get his basic infos.
+   */
+  private static getInfoFromUser() {
+    const questions: Questions = [
+      {
+        name: "API_KEY",
+        type: "password",
+        message:
+          "What is your Bungie.net API-Key? (see https://bungie.net/en/Application/Create)",
+        mask: "*"
+      },
+      {
+        name: "PLAYER_NAME",
+        type: "input",
+        message: "What is your BattleTag/PlaystationID/Gamertag?",
+        when: answers => !!answers.API_KEY
+      }
+    ];
+    return prompt(questions);
+  }
+
+  /**
+   * Get the basic Ids of the players from Bungie.
+   * @param playerName A BattleTag/PSN ID/GamerTag/(SteamId?)
+   * @param apiKey The API key to use
+   */
+  private static async getPlayerIdFromPlayerName(
+    playerName: string,
+    apiKey: string
+  ) {
+    let playerIdsResponse: any = await get(
+      {
+        uri: `/Destiny2/SearchDestinyPlayer/${
+          BungieMembershipType.All
+        }/${encodeURIComponent(playerName)}`
+      },
+      apiKey
+    );
+    if (playerIdsResponse.Response && playerIdsResponse.Response.length > 0) {
+      return {
+        playerId: playerIdsResponse.Response[0].membershipId as string,
+        platform: playerIdsResponse.Response[0]
+          .membershipType as BungieMembershipType
+      };
+    } else {
+      throw new Error("Player not found");
+    }
+  }
+}
