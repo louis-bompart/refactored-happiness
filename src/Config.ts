@@ -2,17 +2,20 @@ import * as os from "os";
 import * as fs from "fs";
 import * as path from "path";
 import { prompt, Questions } from "inquirer";
-import { get, isValidPlatform } from "./Utils";
-import { BungieMembershipType } from "bungie-api-ts/common";
-import { ENOENT } from "constants";
+import { getFromBungie, isPlatformSupported } from "./Utils";
+import { BungieMembershipType, ServerResponse } from "bungie-api-ts/common";
+import { UserInfoCard } from "bungie-api-ts/user/interfaces";
 
 /**
  * Minimal data required to get meaningful info on the user.
  */
-export type ConfigFileData = {
+export interface ConfigFileData {
   playerId: string;
   apiKey: string;
   platform: BungieMembershipType;
+}
+type PartialConfigFileData = {
+  [P in keyof ConfigFileData]?: ConfigFileData[P];
 };
 
 /**
@@ -74,9 +77,12 @@ export class ConfigFile {
    */
   public static getConfigFromPath(path: string): Promise<ConfigFile> {
     if (this.hasConfigFile(path)) {
-      const configFile = JSON.parse(
-        fs.readFileSync(ConfigFile.CONFIG_FILE_PATH).toString()
-      );
+      let configFile;
+      try {
+        configFile = JSON.parse(fs.readFileSync(path).toString());
+      } catch (error) {
+        console.warn(`Failed to read config file at: ${path}.`);
+      }
       if (ConfigFile.isConfigFileValid(configFile)) {
         console.log("Config file found");
         return Promise.resolve(new ConfigFile(configFile));
@@ -87,13 +93,21 @@ export class ConfigFile {
     return ConfigFile.createNewConfig();
   }
 
+  /**
+   * Create a Config from the configFileData
+   * @param configFileData the data on which to build the Config
+   */
   private constructor(configFileData: ConfigFileData) {
     this.data = configFileData;
   }
   //#endregion
 
   //#region File Manipulation functions
-  private static hasConfigFile(configFilePath: string) {
+  /**
+   * Check if the file at the configFilePath is readable.
+   * @param configFilePath a path to a configFile
+   */
+  private static hasConfigFile(configFilePath: string): boolean {
     try {
       fs.accessSync(configFilePath, fs.constants.R_OK);
       return true;
@@ -102,14 +116,23 @@ export class ConfigFile {
     }
   }
 
+  /**
+   * Check if an object is a @interface ConfigFileData
+   * @param obj an object to check
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private static isConfigFileValid(obj: any): obj is ConfigFileData {
-    if (!obj.playerId || !obj.apiKey) {
+    if (!obj || !obj.playerId || !obj.apiKey) {
       return false;
     }
-    return isValidPlatform(obj.platform);
+    return isPlatformSupported(obj.platform);
   }
 
-  private static writeConfig(configFileData: ConfigFileData) {
+  /**
+   * Save the config file in the `CONFIG_FOLDER_NAME`
+   * @param configFileData the config to write
+   */
+  private static writeConfig(configFileData: ConfigFileData): void {
     const fullDirPath = path.join(os.homedir(), this.CONFIG_FOLDER_NAME);
     try {
       fs.statSync(fullDirPath);
@@ -122,7 +145,7 @@ export class ConfigFile {
       if (error.code !== "ENOENT") {
         throw error;
       }
-      fs.writeFileSync(this.CONFIG_FILE_PATH, configFileData);
+      fs.writeFileSync(this.CONFIG_FILE_PATH, JSON.stringify(configFileData));
     }
   }
   //#endregion
@@ -130,7 +153,7 @@ export class ConfigFile {
   /**
    * Prompt some questions to the user to get his basic infos.
    */
-  private static getInfoFromUser() {
+  private static getInfoFromUser(): Promise<Record<string, string>> {
     const questions: Questions = [
       {
         name: "API_KEY",
@@ -143,7 +166,9 @@ export class ConfigFile {
         name: "PLAYER_NAME",
         type: "input",
         message: "What is your BattleTag/PlaystationID/Gamertag?",
-        when: answers => !!answers.API_KEY
+        when: (answers): boolean => {
+          return !!answers.API_KEY;
+        }
       }
     ];
     return prompt(questions);
@@ -157,8 +182,11 @@ export class ConfigFile {
   private static async getPlayerIdFromPlayerName(
     playerName: string,
     apiKey: string
-  ) {
-    let playerIdsResponse: any = await get(
+  ): Promise<PartialConfigFileData> {
+    // Call the server and get the infos.
+    const playersInfoResponse = await getFromBungie<
+      ServerResponse<UserInfoCard[]>
+    >(
       {
         uri: `/Destiny2/SearchDestinyPlayer/${
           BungieMembershipType.All
@@ -166,10 +194,15 @@ export class ConfigFile {
       },
       apiKey
     );
-    if (playerIdsResponse.Response && playerIdsResponse.Response.length > 0) {
+
+    // Get the platformID and playerId.
+    if (
+      playersInfoResponse.Response &&
+      playersInfoResponse.Response.length > 0
+    ) {
       return {
-        playerId: playerIdsResponse.Response[0].membershipId as string,
-        platform: playerIdsResponse.Response[0]
+        playerId: playersInfoResponse.Response[0].membershipId as string,
+        platform: playersInfoResponse.Response[0]
           .membershipType as BungieMembershipType
       };
     } else {
