@@ -1,16 +1,14 @@
 import { Client as DiscordClient } from "discord-rpc";
 import {
-  getProfile,
   BungieMembershipType,
   DestinyCharacterComponent,
   DestinyComponentType,
-  DestinyProfileResponse} from "bungie-api-ts/destiny2";
+  DestinyProfileResponse
+} from "bungie-api-ts/destiny2";
 const DISCORD_CLIENT_ID = "593302206661525504";
 const REFRESH_RATE = 15e3;
-import * as Assert from "assert";
 import { ConfigFileData } from "./Config";
-import { get } from "./Utils";
-
+import { getFromBungie } from "./Utils";
 
 /**
  * An All-in-One client (Discord RPC & Bungie API).
@@ -18,7 +16,7 @@ import { get } from "./Utils";
 export class Client {
   private static instance: Client;
 
-  static createClient(config: ConfigFileData) {
+  public static createClient(config: ConfigFileData): Client {
     if (!Client.instance) {
       Client.instance = new Client(config);
     }
@@ -39,22 +37,21 @@ export class Client {
     this.init();
   }
 
-  private handleDiscordClientReady() {
+  private handleDiscordClientReady(): void {
     setInterval(() => {
       console.log("Updated presence");
-      // pullNewData(membershipId, membershipType);
-      // setActivity();
+      /*
+       * PullNewData(membershipId, membershipType);
+       * setActivity();
+       */
     }, REFRESH_RATE);
   }
 
-  private async init() {
-    const getProfile: DestinyProfileResponse = (await get(
+  private async init(): Promise<void> {
+    const getProfile: DestinyProfileResponse = (await getFromBungie(
       {
         uri: `/Destiny2/${this.membershipType}/Profile/${this.membershipId}`,
-        components: [
-          DestinyComponentType.Characters,
-          DestinyComponentType.CharacterActivities
-        ]
+        components: [DestinyComponentType.Characters, DestinyComponentType.CharacterActivities]
       },
       this.apiKey
     )) as DestinyProfileResponse;
@@ -82,8 +79,6 @@ export class Client {
 
     this.discordClient.on("ready", this.handleDiscordClientReady);
 
-    this.discordClient
-      .login({ clientId: DISCORD_CLIENT_ID })
-      .catch(console.error);
+    this.discordClient.login({ clientId: DISCORD_CLIENT_ID }).catch(console.error);
   }
 }
