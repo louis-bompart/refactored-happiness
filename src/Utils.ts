@@ -1,5 +1,7 @@
 import { DestinyComponentType, BungieMembershipType } from "bungie-api-ts/destiny2";
 import { get } from "request-promise-native";
+import { System } from "./System";
+
 const BUNGIE_ENDPOINT = "https://www.bungie.net/Platform";
 /**
  * The param to send to @function getFromBungie to get some data.
@@ -39,4 +41,15 @@ export const CURATED_PLATFORM: BungieMembershipType[] = [
  */
 export function isPlatformSupported(platform: number): boolean {
   return CURATED_PLATFORM.includes(platform);
+}
+
+export function createHierarchyIfNeeded(system: System, targetDirectory: string): void {
+  try {
+    system.fs.accessSync(targetDirectory, system.fs.constants.W_OK);
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+  system.fs.mkdirSync(targetDirectory, { recursive: true });
 }

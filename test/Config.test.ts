@@ -19,11 +19,13 @@ describe("ConfigFile", () => {
   let promptStub: Sinon.SinonStub;
   let getFromBungieStub: Sinon.SinonStub;
   let isPlatformCompatibleStub: Sinon.SinonStub;
+  let createHierarchyIfNeededStub: Sinon.SinonStub;
 
   before(() => {
     promptStub = sandbox.stub(inquirer, "prompt");
     getFromBungieStub = sandbox.stub(Utils, "getFromBungie");
     isPlatformCompatibleStub = sandbox.stub(Utils, "isPlatformSupported");
+    createHierarchyIfNeededStub = sandbox.stub(Utils, "createHierarchyIfNeeded");
 
     ConfigFile.System.fs = {
       ...fs,
@@ -91,7 +93,7 @@ describe("ConfigFile", () => {
         MessageData: {}
       };
 
-      before(() => {
+      beforeEach(() => {
         promptStub.returns({ API_KEY: API_KEY, PLAYER_NAME: PLAYER_NAME });
         getFromBungieStub.returns(getFromBungieReturnValue);
         (ConfigFile.System.fs.accessSync as SinonStub).throws({ code: "ENOENT" });
@@ -121,16 +123,25 @@ describe("ConfigFile", () => {
         Message: "Ok",
         MessageData: {}
       };
-      let cannotCreateError: Error;
+      const cannotCreateError = new Error("CannotCreate");
 
-      before(() => {
-        cannotCreateError = new Error("CannotCreate");
+      beforeEach(() => {
         promptStub.returns({ API_KEY: API_KEY, PLAYER_NAME: PLAYER_NAME });
         getFromBungieStub.returns(getFromBungieReturnValue);
-        (ConfigFile.System.fs.accessSync as SinonStub).throws(cannotCreateError);
       });
 
-      it("should throw", async () => {
+      it("should throw when the dir cannot be created", async () => {
+        createHierarchyIfNeededStub.throws(cannotCreateError);
+        try {
+          await ConfigFile.createNewConfig("myPath");
+          expect.fail("resolved", `rejected with ${cannotCreateError}`);
+        } catch (error) {
+          expect(error).to.be.eql(cannotCreateError);
+        }
+      });
+
+      it("should throw when the dir exists but cannot create the file", async () => {
+        (ConfigFile.System.fs.accessSync as SinonStub).throws(cannotCreateError);
         try {
           await ConfigFile.createNewConfig("myPath");
           expect.fail("resolved", `rejected with ${cannotCreateError}`);
@@ -151,11 +162,10 @@ describe("ConfigFile", () => {
         Message: "NOK",
         MessageData: {}
       };
-      let ApiError: Error;
+      const ApiError = new Error("Error while getting the player");
+      ApiError.stack = JSON.stringify(getFromBungieReturnValue);
 
-      before(() => {
-        ApiError = new Error("Error while getting the player");
-        ApiError.stack = JSON.stringify(getFromBungieReturnValue);
+      beforeEach(() => {
         promptStub.returns({ API_KEY: API_KEY, PLAYER_NAME: PLAYER_NAME });
         getFromBungieStub.returns(getFromBungieReturnValue);
       });
@@ -179,7 +189,7 @@ describe("ConfigFile", () => {
         apiKey: "anotherapikey",
         playerId: "membershipId"
       };
-      before(() => {
+      beforeEach(() => {
         isPlatformCompatibleStub.returns(true);
         (ConfigFile.System.fs.readFileSync as Sinon.SinonStub).returns(JSON.stringify(testConfig));
       });
@@ -200,9 +210,11 @@ describe("ConfigFile", () => {
         apiKey: "anotherapikey"
       };
       let createNewConfigStub: Sinon.SinonStub;
-
       before(() => {
         createNewConfigStub = sandbox.stub(ConfigFile, "createNewConfig");
+      });
+
+      beforeEach(() => {
         (ConfigFile.System.fs.readFileSync as Sinon.SinonStub).returns(JSON.stringify(testConfig));
       });
 
@@ -221,6 +233,9 @@ describe("ConfigFile", () => {
 
       before(() => {
         createNewConfigStub = sandbox.stub(ConfigFile, "createNewConfig");
+      });
+
+      beforeEach(() => {
         (ConfigFile.System.fs.accessSync as Sinon.SinonStub).throws(new Error("error"));
       });
 
@@ -239,6 +254,9 @@ describe("ConfigFile", () => {
 
       before(() => {
         createNewConfigStub = sandbox.stub(ConfigFile, "createNewConfig");
+      });
+
+      beforeEach(() => {
         isPlatformCompatibleStub.returns(true);
         (ConfigFile.System.fs.readFileSync as Sinon.SinonStub).returns("some random string that is not a json at all");
       });

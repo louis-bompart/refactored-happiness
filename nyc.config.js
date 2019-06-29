@@ -5,8 +5,9 @@ module.exports = {
   ...typescriptConfig,
   exclude: typescriptConfig.exclude.concat([
     ".mocharc.js",
-    "**/{ava,babel,jest,nyc,rollup,webpack,prettier}.config.js"
+    "**/{ava,babel,jest,nyc,rollup,webpack,prettier,release}.config.js"
   ]),
+  includes: ["src/**/*.ts"],
   reporter: ["lcov", "text"],
   all: true
 };

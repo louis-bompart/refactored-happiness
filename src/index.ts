@@ -1,6 +1,9 @@
-/* eslint-disable */
 import { ConfigFile } from "./Config";
+import { Database } from "./Database";
+import * as path from "path";
+import * as os from "os";
 
 (async function() {
-  console.log(JSON.stringify((await ConfigFile.getExistingConfig()).data));
+  const config = await ConfigFile.getExistingConfig();
+  await new Database(path.join(os.homedir(), "foobarbaz"), config.data.apiKey).get();
 })();
