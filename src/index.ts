@@ -1,3 +1,4 @@
+/* istanbul ignore file: only a basic runner for now, it'll be scrapped */
 import { ConfigFile } from "./Config";
 import { Database } from "./Database";
 import * as path from "path";
