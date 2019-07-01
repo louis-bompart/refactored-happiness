@@ -2,12 +2,27 @@ import { BungieMembershipType } from "bungie-api-ts/common";
 import { expect, use } from "chai";
 import request from "request-promise-native";
 import Sinon from "sinon";
-import { BungieAPIParams, getFromBungie, isPlatformSupported } from "../src/Utils";
+import { BungieAPIParams, getFromBungie, isPlatformSupported, createHierarchyIfNeeded } from "../src/Utils";
+import { System, DefaultSystem } from "../src/System";
+import sinon from "sinon";
 
 use(require("sinon-chai"));
 
+/**
+ **
+ * Basic implementation of https://nodejs.org/api/errors.html#errors_class_systemerror
+ */
+class SystemError extends Error {
+  public code?: string;
+
+  public constructor(name?: string, code?: string) {
+    super(name);
+    this.code = code;
+  }
+}
+
 describe("Utils", () => {
-  describe("#isValidPlatform", () => {
+  describe("isValidPlatform", () => {
     it("should return true for curated platforms", () => {
       const curatedPlatform = [
         BungieMembershipType.TigerBlizzard,
@@ -26,7 +41,7 @@ describe("Utils", () => {
     });
   });
 
-  describe("#getFromBungie", () => {
+  describe("getFromBungie", () => {
     const sandbox = Sinon.createSandbox();
 
     let requestGetStub: Sinon.SinonStub;
@@ -79,6 +94,55 @@ describe("Utils", () => {
         headers: { "X-API-Key": apiKey },
         json: true
       });
+    });
+  });
+
+  describe("createHierarchyIfNeed", () => {
+    const sandbox = sinon.createSandbox();
+
+    it("should do nothing nor throw if the hierarchy already exists and is fully accessible", () => {
+      const fakeSystem: System = {
+        ...DefaultSystem,
+        fs: { ...DefaultSystem.fs, accessSync: sandbox.stub(), mkdirSync: sandbox.stub() }
+      };
+
+      expect(createHierarchyIfNeeded.bind(createHierarchyIfNeeded, fakeSystem, "test/Path")).to.not.throws();
+      expect(fakeSystem.fs.accessSync).to.be.calledWith("test/Path");
+      expect(fakeSystem.fs.mkdirSync).to.not.be.called;
+    });
+
+    it("should create the hierarchy but not throw if the hierarchy is creatable", () => {
+      const fakeSystem: System = {
+        ...DefaultSystem,
+        fs: {
+          ...DefaultSystem.fs,
+          accessSync: sandbox.stub().throws({ code: "ENOENT" }),
+          mkdirSync: sandbox.stub()
+        }
+      };
+
+      expect(createHierarchyIfNeeded.bind(createHierarchyIfNeeded, fakeSystem, "test/Path")).to.not.throws();
+      expect(fakeSystem.fs.accessSync).to.be.calledWith("test/Path");
+      expect(fakeSystem.fs.accessSync).to.throw;
+      expect(fakeSystem.fs.mkdirSync).to.be.calledWith("test/Path", { recursive: true });
+    });
+
+    it("should throw if the hierarchy is not accessible or creatable", () => {
+      const error = new SystemError("somemessage");
+      error.code = "someCode";
+      const fakeSystem: System = {
+        ...DefaultSystem,
+        fs: {
+          ...DefaultSystem.fs,
+          accessSync: sandbox.stub().throws(error),
+          mkdirSync: sandbox.stub()
+        }
+      };
+
+      expect(createHierarchyIfNeeded.bind(createHierarchyIfNeeded, fakeSystem, "test/Path")).to.throws(error);
+      expect(fakeSystem.fs.accessSync).to.be.calledWith("test/Path");
+      expect(fakeSystem.fs.accessSync).to.throw;
+      expect(fakeSystem.fs.mkdirSync).to.not.be.called;
     });
   });
 });

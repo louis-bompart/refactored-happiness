@@ -45,7 +45,8 @@ export function isPlatformSupported(platform: number): boolean {
 
 export function createHierarchyIfNeeded(system: System, targetDirectory: string): void {
   try {
-    system.fs.accessSync(targetDirectory, system.fs.constants.W_OK);
+    system.fs.accessSync(targetDirectory, system.fs.constants.F_OK);
+    return;
   } catch (error) {
     if (error.code !== "ENOENT") {
       throw error;
