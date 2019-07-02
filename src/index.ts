@@ -26,17 +26,13 @@ interface CharacterComponentsDataWrapper<T> {
 }
 
 interface DestinyCharacterActivitiesComponentResponse {
-  characterActivities: {
-    data: CharacterComponentsDataWrapper<DestinyCharacterActivitiesComponent>;
-  };
-  characters: {
-    data: CharacterComponentsDataWrapper<DestinyCharacterComponent>;
-  };
+  characterActivities: CharacterComponentsDataWrapper<DestinyCharacterActivitiesComponent>;
+  characters: CharacterComponentsDataWrapper<DestinyCharacterComponent>;
 }
 
 (async function() {
   const config = await ConfigFile.getExistingConfig();
-  const database = await Database.getDatabase(path.join(os.homedir(), "discord-ghost", "data"), config.data.apiKey);
+  const database = await Database.getInstance(path.join(os.homedir(), "discord-ghost", "data"), config.data.apiKey);
   const rpc = await DiscordRPC.getInstance();
 
   setInterval(async () => {

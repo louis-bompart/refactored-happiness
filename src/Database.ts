@@ -3,19 +3,19 @@ import { getFromBungie, createHierarchyIfNeeded } from "./Utils";
 import { DestinyManifest, ServerResponse, PlatformErrorCodes } from "bungie-api-ts/destiny2";
 import { get } from "request-promise-native";
 import jszip from "jszip";
-import sqlite3 from "better-sqlite3";
-const JSZip = new jszip();
+import SQLite3 from "better-sqlite3";
 
 const LOCALE = "en";
 
 export class Database {
   public static System: System = DefaultSystem;
+  public static DatabaseDriver: Function = SQLite3;
   public static instance: Database;
 
   private databasePath: string;
   private databaseName: string;
   private apiKey: string;
-  private sqlDatabase: sqlite3.Database;
+  private sqlDatabase: SQLite3.Database;
 
   private constructor(databasePath: string, apiKey: string) {
     this.databasePath = databasePath;
@@ -23,7 +23,7 @@ export class Database {
   }
 
   private openDatabase(): void {
-    this.sqlDatabase = sqlite3(
+    this.sqlDatabase = Database.DatabaseDriver(
       Database.System.path.join(this.databasePath, Database.System.path.parse(this.databaseName).base)
     );
   }
@@ -41,7 +41,7 @@ export class Database {
     this.openDatabase();
   }
 
-  public static async getDatabase(databasePath: string, apiKey: string): Promise<Database> {
+  public static async getInstance(databasePath: string, apiKey: string): Promise<Database> {
     Database.instance = new Database(databasePath, apiKey);
     await Database.instance.initialize();
     return Database.instance;
@@ -73,7 +73,7 @@ export class Database {
     const databaseFileName = Database.System.path.parse(databaseName).base;
 
     const rawZip = await get(`https://Bungie.net${databaseName}`, { encoding: null });
-    const zipFile = await JSZip.loadAsync(rawZip);
+    const zipFile = await jszip.loadAsync(rawZip);
     const databaseFile = zipFile.files[databaseFileName];
 
     createHierarchyIfNeeded(Database.System, this.databasePath);

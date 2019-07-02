@@ -1,16 +1,15 @@
 import { expect, use } from "chai";
-import Sinon, { SinonStub } from "sinon";
+import Sinon from "sinon";
 
 import { ConfigFile } from "../src/Config";
 
-import fs, { readFileSync } from "fs";
+import fs from "fs";
 import os from "os";
 import inquirer from "inquirer";
 import * as Utils from "../src/Utils";
 
 import { UserMembership } from "bungie-api-ts/user/interfaces";
 import { ServerResponse, PlatformErrorCodes } from "bungie-api-ts/common";
-import { Stats } from "fs";
 
 use(require("sinon-chai"));
 
@@ -29,11 +28,11 @@ describe("ConfigFile", () => {
 
     ConfigFile.System.fs = {
       ...fs,
-      readFileSync: sandbox.stub(fs, "readFileSync") as typeof readFileSync,
+      readFileSync: sandbox.stub(fs, "readFileSync") as typeof fs.readFileSync,
       writeFileSync: sandbox.stub(fs, "writeFileSync"),
       mkdirSync: sandbox.stub(fs, "mkdirSync"),
       unlinkSync: sandbox.stub(fs, "unlinkSync"),
-      statSync: sandbox.stub(fs, "statSync").returns(new Stats()),
+      statSync: sandbox.stub(fs, "statSync").returns(new fs.Stats()),
       accessSync: sandbox.stub(fs, "accessSync")
     };
     ConfigFile.System.os = {
@@ -96,7 +95,7 @@ describe("ConfigFile", () => {
       beforeEach(() => {
         promptStub.returns({ API_KEY: API_KEY, PLAYER_NAME: PLAYER_NAME });
         getFromBungieStub.returns(getFromBungieReturnValue);
-        (ConfigFile.System.fs.accessSync as SinonStub).throws({ code: "ENOENT" });
+        (ConfigFile.System.fs.accessSync as Sinon.SinonStub).throws({ code: "ENOENT" });
       });
 
       it("should create a new config file and return the config", async () => {
@@ -141,7 +140,7 @@ describe("ConfigFile", () => {
       });
 
       it("should throw when the dir exists but cannot create the file", async () => {
-        (ConfigFile.System.fs.accessSync as SinonStub).throws(cannotCreateError);
+        (ConfigFile.System.fs.accessSync as Sinon.SinonStub).throws(cannotCreateError);
         try {
           await ConfigFile.createNewConfig("myPath");
           expect.fail("resolved", `rejected with ${cannotCreateError}`);
