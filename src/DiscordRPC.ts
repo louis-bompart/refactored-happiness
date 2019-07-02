@@ -1,3 +1,4 @@
+/* istanbul ignore file: simple wrapper, tho todo eventually */
 import { Client, Presence } from "discord-rpc";
 const clientId = "593302206661525504";
 

@@ -83,6 +83,14 @@ describe("Utils", () => {
         json: true
       });
     });
+
+    it("should bubble up the error it get", async () => {
+      const params: BungieAPIParams = { uri: "my/awesome/service/", components: [42, 43] };
+      const apiKey = "myawesomeapikey";
+      const requestError = new Error("get error");
+      requestGetStub.throws(requestError);
+      expect(await getFromBungie(params, apiKey)).to.be.equal(requestError);
+    });
   });
 
   describe("createHierarchyIfNeed", () => {

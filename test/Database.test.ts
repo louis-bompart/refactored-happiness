@@ -140,7 +140,7 @@ describe("Database", () => {
             .then(() => {
               expect(true).to.be.ok;
             })
-            .catch((error: any) => {
+            .catch(() => {
               expect.fail("getInstance has thrown an error");
             });
         });
@@ -224,12 +224,12 @@ describe("Database", () => {
     });
 
     context("if we can't get the name of the database", () => {
-      let error: Error;
+      let manifestError: Error;
       const manifestFailedResponse = { ...manifestResponse, ErrorCode: PlatformErrorCodes.None };
 
       beforeEach(() => {
-        error = new Error("Error while getting the manifest");
-        error.stack = JSON.stringify(manifestFailedResponse);
+        manifestError = new Error("Error while getting the manifest");
+        manifestError.stack = JSON.stringify(manifestFailedResponse);
         getFromBungieStub.returns(manifestFailedResponse);
       });
 
@@ -238,8 +238,9 @@ describe("Database", () => {
           .then(() => {
             expect.fail();
           })
-          .catch((error: any) => {
-            expect(error).to.be.equals(error);
+          .catch((error: Error) => {
+            expect(error.message).to.be.equals(manifestError.message);
+            expect(error.stack).to.be.equals(manifestError.stack);
           });
       });
     });
@@ -258,6 +259,7 @@ describe("Database", () => {
       const testResponse = { foo: "bar" };
 
       sqliteGetStub.returns({ json: JSON.stringify(testResponse) });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       latestSqliteDatabaseStub.prepare.returns({ get: sqliteGetStub } as any);
 
       expect(databaseInstance.getFromDatabase("someTable", 42)).to.be.deep.equals(testResponse);

@@ -23,7 +23,11 @@ export async function getFromBungie<T>(params: BungieAPIParams, bungiekey: strin
     params.components = Array.isArray(params.components) ? params.components : [params.components];
     url.searchParams.set("components", params.components.join(","));
   }
-  return (await get({ uri: url.toString(), headers: { "X-API-Key": bungiekey }, json: true })) as T;
+  try {
+    return (await get({ uri: url.toString(), headers: { "X-API-Key": bungiekey }, json: true })) as T;
+  } catch (error) {
+    return error;
+  }
 }
 
 /**
