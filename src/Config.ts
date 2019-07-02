@@ -22,7 +22,7 @@ type PartialConfigFileData = {
 export class ConfigFile {
   public static System: System = DefaultSystem;
   // #region Config file paths.
-  private static CONFIG_FOLDER_NAME = "ghost-discord";
+  private static CONFIG_FOLDER_NAME = "discord-ghost";
   private static CONFIG_FILE_NAME = "config.json";
   private static CONFIG_FILE_PATH = ConfigFile.System.path.join(
     ConfigFile.System.os.homedir(),

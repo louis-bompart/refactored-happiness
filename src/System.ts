@@ -1,3 +1,4 @@
+/* istanbul ignore file: We don't test node behavior */
 import * as os from "os";
 import * as fs from "fs";
 import * as path from "path";
@@ -14,7 +15,7 @@ export interface System {
 }
 
 /**
- * The native modules
+ * The native modules.
  */
 export const DefaultSystem: System = {
   fs: fs,
