@@ -5,21 +5,9 @@ import Sinon from "sinon";
 import { BungieAPIParams, getFromBungie, isPlatformSupported, createHierarchyIfNeeded } from "../src/Utils";
 import { System, DefaultSystem } from "../src/System";
 import sinon from "sinon";
+import { SystemError } from "./SystemError";
 
 use(require("sinon-chai"));
-
-/**
- **
- * Basic implementation of https://nodejs.org/api/errors.html#errors_class_systemerror
- */
-class SystemError extends Error {
-  public code?: string;
-
-  public constructor(name?: string, code?: string) {
-    super(name);
-    this.code = code;
-  }
-}
 
 describe("Utils", () => {
   describe("isValidPlatform", () => {

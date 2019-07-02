@@ -34,9 +34,13 @@ export class Database {
   }
 
   private async initialize(): Promise<void> {
-    this.databaseName = await this.getDatabaseName();
-    if (!this.isCached()) {
-      await this.getFromAPI();
+    try {
+      this.databaseName = await this.getDatabaseName();
+      if (!this.isCached()) {
+        await this.getFromAPI();
+      }
+    } catch (error) {
+      throw error;
     }
     this.openDatabase();
   }
@@ -50,7 +54,9 @@ export class Database {
   private isCached(): boolean {
     try {
       Database.System.fs.statSync(this.databasePath);
-      return Database.System.fs.readdirSync(this.databasePath).some(() => this.databaseName);
+      return Database.System.fs
+        .readdirSync(this.databasePath)
+        .some((fileName: string) => fileName === Database.System.path.parse(this.databaseName).base);
     } catch (error) {
       return false;
     }
@@ -84,11 +90,13 @@ export class Database {
           Database.System.fs.unlinkSync(Database.System.path.join(this.databasePath, file));
         } catch (error) {
           // Wer're doing our best effort to clean the old files, but that's not critical either.
+          /* istanbul ignore next: not important, and don't want to test the sdout/stderr*/
           console.warn(error);
         }
       });
       return this.writeDatabaseFile(databaseFile, databaseFileName);
     }
+    throw new Error("Cannot write database file.");
   }
 
   private async getDatabaseName(): Promise<string> {

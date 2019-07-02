@@ -44,7 +44,7 @@ interface DestinyCharacterActivitiesComponentResponse {
       config.data.apiKey
     );
     if (response.ErrorCode !== PlatformErrorCodes.Success) {
-      throw "foo";
+      // TODO
     }
     let currentCharacterId: string;
     Object.keys(response.Response.characterActivities.data).forEach(characterId => {
