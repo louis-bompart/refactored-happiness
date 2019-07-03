@@ -80,7 +80,7 @@ describe("ConfigFile", () => {
       });
     });
 
-    context("when the data from the API is good and the file already does not exists but can be created", () => {
+    context("when the data from the API is good and the file does not exists but can be created", () => {
       beforeEach(() => {
         (ConfigFile.System.fs.accessSync as Sinon.SinonStub).throws({ code: "ENOENT" });
       });
@@ -98,7 +98,7 @@ describe("ConfigFile", () => {
       });
     });
 
-    context("when the data from the API is good and the file already does not exists and cannot be created", () => {
+    context("when the data from the API is good and the file does not exists and cannot be created", () => {
       const cannotCreateError = new Error("CannotCreate");
 
       beforeEach(() => {
@@ -116,12 +116,14 @@ describe("ConfigFile", () => {
 
       it("should throw when the dir exists but cannot create the file", async () => {
         (ConfigFile.System.fs.accessSync as Sinon.SinonStub).throws(cannotCreateError);
-        try {
-          await ConfigFile.createNewConfig("myPath");
-          expect.fail("resolved", `rejected with ${cannotCreateError}`);
-        } catch (error) {
-          expect(error).to.be.eql(cannotCreateError);
-        }
+
+        await ConfigFile.createNewConfig("myPath")
+          .then(() => {
+            expect.fail("resolved", `rejected with ${cannotCreateError}`);
+          })
+          .catch((error: Error) => {
+            expect(error.message).to.be.eql(cannotCreateError.message);
+          });
       });
     });
 

@@ -1,4 +1,5 @@
-/* istanbul ignore file: TO-DO important tech debt there */
+/* istanbul ignore file: techdebt, todo */
+
 import { Database } from "./Database";
 import { ConfigFile } from "./Config";
 import { DiscordRPC } from "./DiscordRPC";

@@ -138,8 +138,8 @@ export class ConfigFile {
    */
   private static writeConfig(configFileData: ConfigFileData, configPath: string): void {
     const configPathObj = ConfigFile.System.path.parse(configPath);
-    createHierarchyIfNeeded(ConfigFile.System, configPathObj.dir);
     try {
+      createHierarchyIfNeeded(ConfigFile.System, configPathObj.dir);
       ConfigFile.System.fs.accessSync(configPath, ConfigFile.System.fs.constants.W_OK);
     } catch (error) {
       if (error.code !== "ENOENT") {
