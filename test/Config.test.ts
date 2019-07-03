@@ -50,23 +50,23 @@ describe("ConfigFile", () => {
   });
 
   describe("ConfigFile.createNewConfig", () => {
+    const API_KEY = "apikey";
+    const PLAYER_NAME = "playername";
+    const getFromBungieReturnValue: ServerResponse<UserMembership[]> = {
+      Response: [{ membershipType: 0, membershipId: "membershipId", displayName: "displayName" }],
+      ErrorCode: PlatformErrorCodes.Success,
+      ThrottleSeconds: 0,
+      ErrorStatus: "Success",
+      Message: "Ok",
+      MessageData: {}
+    };
+
+    beforeEach(() => {
+      promptStub.returns({ API_KEY: API_KEY, PLAYER_NAME: PLAYER_NAME });
+      getFromBungieStub.returns(getFromBungieReturnValue);
+    });
+
     context("when the data from the API is good and the file already exists", () => {
-      const API_KEY = "apikey";
-      const PLAYER_NAME = "playername";
-      const getFromBungieReturnValue: ServerResponse<UserMembership[]> = {
-        Response: [{ membershipType: 0, membershipId: "membershipId", displayName: "displayName" }],
-        ErrorCode: PlatformErrorCodes.Success,
-        ThrottleSeconds: 0,
-        ErrorStatus: "Success",
-        Message: "Ok",
-        MessageData: {}
-      };
-
-      before(() => {
-        promptStub.returns({ API_KEY: API_KEY, PLAYER_NAME: PLAYER_NAME });
-        getFromBungieStub.returns(getFromBungieReturnValue);
-      });
-
       it("should update the config file and return the config", async () => {
         const configFile = await ConfigFile.createNewConfig("myPath");
         const expectedData = {
@@ -81,20 +81,7 @@ describe("ConfigFile", () => {
     });
 
     context("when the data from the API is good and the file already does not exists but can be created", () => {
-      const API_KEY = "apikey";
-      const PLAYER_NAME = "playername";
-      const getFromBungieReturnValue: ServerResponse<UserMembership[]> = {
-        Response: [{ membershipType: 0, membershipId: "membershipId", displayName: "displayName" }],
-        ErrorCode: PlatformErrorCodes.Success,
-        ThrottleSeconds: 0,
-        ErrorStatus: "Success",
-        Message: "Ok",
-        MessageData: {}
-      };
-
       beforeEach(() => {
-        promptStub.returns({ API_KEY: API_KEY, PLAYER_NAME: PLAYER_NAME });
-        getFromBungieStub.returns(getFromBungieReturnValue);
         (ConfigFile.System.fs.accessSync as Sinon.SinonStub).throws({ code: "ENOENT" });
       });
 
@@ -112,25 +99,13 @@ describe("ConfigFile", () => {
     });
 
     context("when the data from the API is good and the file already does not exists and cannot be created", () => {
-      const API_KEY = "apikey";
-      const PLAYER_NAME = "playername";
-      const getFromBungieReturnValue: ServerResponse<UserMembership[]> = {
-        Response: [{ membershipType: 0, membershipId: "membershipId", displayName: "displayName" }],
-        ErrorCode: PlatformErrorCodes.Success,
-        ThrottleSeconds: 0,
-        ErrorStatus: "Success",
-        Message: "Ok",
-        MessageData: {}
-      };
       const cannotCreateError = new Error("CannotCreate");
 
       beforeEach(() => {
-        promptStub.returns({ API_KEY: API_KEY, PLAYER_NAME: PLAYER_NAME });
-        getFromBungieStub.returns(getFromBungieReturnValue);
+        createHierarchyIfNeededStub.throws(cannotCreateError);
       });
 
       it("should throw when the dir cannot be created", async () => {
-        createHierarchyIfNeededStub.throws(cannotCreateError);
         try {
           await ConfigFile.createNewConfig("myPath");
           expect.fail("resolved", `rejected with ${cannotCreateError}`);
@@ -151,8 +126,6 @@ describe("ConfigFile", () => {
     });
 
     context("when the data from the API is bad", () => {
-      const API_KEY = "apikey";
-      const PLAYER_NAME = "playername";
       const getFromBungieReturnValue: ServerResponse<UserMembership[]> = {
         Response: [{ membershipType: 0, membershipId: "membershipId", displayName: "displayName" }],
         ErrorCode: PlatformErrorCodes.TagNotFound,
@@ -165,7 +138,6 @@ describe("ConfigFile", () => {
       ApiError.stack = JSON.stringify(getFromBungieReturnValue);
 
       beforeEach(() => {
-        promptStub.returns({ API_KEY: API_KEY, PLAYER_NAME: PLAYER_NAME });
         getFromBungieStub.returns(getFromBungieReturnValue);
       });
 
