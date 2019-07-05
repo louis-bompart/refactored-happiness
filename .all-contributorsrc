@@ -33,6 +33,24 @@
         "code",
         "bug"
       ]
+    },
+    {
+      "login": "TalenTaylor",
+      "name": "TalenTaylor",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/52544870?v=4",
+      "profile": "https://github.com/TalenTaylor",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "CaptainKoby",
+      "name": "Koby",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/32594096?v=4",
+      "profile": "https://github.com/CaptainKoby",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7
