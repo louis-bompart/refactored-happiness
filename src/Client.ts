@@ -32,6 +32,7 @@ interface DestinyCharacterActivitiesComponentResponse {
 }
 
 const PLACE_ORBIT = 2961497387;
+const ACTIVITY_TYPE_FORGE = 838603889;
 
 export class Client {
   public static System: System = DefaultSystem;
@@ -149,7 +150,7 @@ export class Client {
     currentActivityData: DestinyCharacterActivitiesComponent,
     currentCharacterData: DestinyCharacterComponent
   ): Presence {
-    const currentActivity = this.database.getFromDatabase<DestinyActivityDefinition>(
+    let currentActivity = this.database.getFromDatabase<DestinyActivityDefinition>(
       "DestinyActivityDefinition",
       currentActivityData.currentActivityHash
     );
@@ -178,6 +179,14 @@ export class Client {
       "DestinyClassDefinition",
       currentCharacterData.classHash
     );
+
+    if (currentActivity.activityTypeHash == ACTIVITY_TYPE_FORGE) {
+      /*
+       * Forge activity defintions are for some reason rather sparse, but the
+       * playlist activity definition has more detail.
+       */
+      currentActivity = currentPlaylist;
+    }
 
     let detailText;
     if (
