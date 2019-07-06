@@ -3,6 +3,7 @@
 import { Database } from "./Database";
 import { ConfigFile } from "./Config";
 import { DiscordRPC } from "./DiscordRPC";
+import { Presence } from "discord-rpc";
 import {
   DestinyComponentType,
   DestinyCharacterActivitiesComponent,
@@ -29,6 +30,9 @@ interface DestinyCharacterActivitiesComponentResponse {
   characterActivities: CharacterComponentsDataWrapper<DestinyCharacterActivitiesComponent>;
   characters: CharacterComponentsDataWrapper<DestinyCharacterComponent>;
 }
+
+const PLACE_ORBIT = 2961497387;
+
 export class Client {
   public static System: System = DefaultSystem;
 
@@ -38,6 +42,8 @@ export class Client {
   private configFile: ConfigFile;
   private discordRpc: DiscordRPC;
   private refreshRate: number;
+
+  private lastActivity: number;
 
   public constructor(
     database: Database,
@@ -87,43 +93,15 @@ export class Client {
           return this.stop();
         }
 
-        const currentActivity = this.database.getFromDatabase<DestinyActivityDefinition>(
-          "DestinyActivityDefinition",
-          response.characterActivities.data[currentCharacterId].currentActivityHash
-        );
-
-        let additionalInfos;
-
-        if (currentActivity.directActivityModeHash) {
-          const activityMode = this.database.getFromDatabase<DestinyActivityModeDefinition>(
-            "DestinyActivityModeDefinition",
-            currentActivity.directActivityModeHash
-          );
-          additionalInfos = activityMode;
-        } else {
-          const destination = this.database.getFromDatabase<DestinyPlaceDefinition>(
-            "DestinyPlaceDefinition",
-            currentActivity.placeHash
-          );
-          additionalInfos = destination;
-        }
-
-        const smallImageKey = Client.System.path.parse(additionalInfos.displayProperties.icon).name;
+        const currentActivityData = response.characterActivities.data[currentCharacterId];
         const currentCharacterData = response.characters.data[currentCharacterId];
-        const currentCharacterRace = this.database.getFromDatabase<DestinyClassDefinition>(
-          "DestinyClassDefinition",
-          currentCharacterData.classHash
-        );
 
-        this.discordRpc.setActivity({
-          state: this.getState(currentActivity, additionalInfos.displayProperties.name),
-          details: additionalInfos.displayProperties.name,
-          largeImageKey: this.getLargeImageKey(currentActivity),
-          largeImageText: currentActivity.displayProperties.name,
-          smallImageKey: this.getSmallImageKey(smallImageKey),
-          smallImageText: `${currentCharacterRace.displayProperties.name} - ${currentCharacterData.light}`,
-          startTimestamp: Date.parse(response.characterActivities.data[currentCharacterId].dateActivityStarted)
-        });
+        if (currentActivityData.currentActivityHash != this.lastActivity) {
+          const activityInfo = this.getActivityInfo(currentActivityData, currentCharacterData);
+          console.log(`\nNew activity:\n${activityInfo.details || ""}\n${activityInfo.state}`);
+          this.discordRpc.setActivity(activityInfo);
+          this.lastActivity = currentActivityData.currentActivityHash;
+        }
       }, this.refreshRate);
     }
   }
@@ -167,14 +145,64 @@ export class Client {
     }
   }
 
-  private getState(currentActivity: DestinyActivityDefinition, details: string): string {
-    return currentActivity.displayProperties.description && details !== "Explore"
-      ? currentActivity.displayProperties.description
-      : "  ";
+  private getActivityInfo(
+    currentActivityData: DestinyCharacterActivitiesComponent,
+    currentCharacterData: DestinyCharacterComponent
+  ): Presence {
+    const currentActivity = this.database.getFromDatabase<DestinyActivityDefinition>(
+      "DestinyActivityDefinition",
+      currentActivityData.currentActivityHash
+    );
+
+    if (currentActivity.placeHash == PLACE_ORBIT) {
+      // Orbit has no additional data to show
+      return {
+        state: "In Orbit",
+        largeImageKey: "default_large",
+        largeImageText: "In Orbit",
+        startTimestamp: Date.parse(currentActivityData.dateActivityStarted)
+      };
+    }
+
+    const currentActivityMode = this.database.getFromDatabase<DestinyActivityModeDefinition>(
+      "DestinyActivityModeDefinition",
+      currentActivityData.currentActivityModeHash
+    );
+
+    const currentPlaylist = this.database.getFromDatabase<DestinyActivityDefinition>(
+      "DestinyActivityDefinition",
+      currentActivityData.currentPlaylistActivityHash
+    );
+
+    const currentCharacterRace = this.database.getFromDatabase<DestinyClassDefinition>(
+      "DestinyClassDefinition",
+      currentCharacterData.classHash
+    );
+
+    let detailText;
+    if (
+      currentPlaylist.displayProperties.name &&
+      currentPlaylist.displayProperties.name != currentActivity.displayProperties.name &&
+      currentPlaylist.displayProperties.name != currentActivityMode.displayProperties.name
+    ) {
+      detailText = currentPlaylist.displayProperties.name + " \u2013 " + currentActivityMode.displayProperties.name;
+    } else {
+      detailText = currentActivityMode.displayProperties.name;
+    }
+    return {
+      state: currentActivity.displayProperties.name,
+      details: detailText,
+      largeImageKey: this.getLargeImageKey(currentActivity),
+      largeImageText: currentActivity.displayProperties.description || currentActivity.displayProperties.name,
+      smallImageKey: this.getSmallImageKey(currentActivityMode),
+      smallImageText: `${currentCharacterRace.displayProperties.name} \u2013 ${currentCharacterData.light}`,
+      startTimestamp: Date.parse(currentActivityData.dateActivityStarted)
+    };
   }
 
-  private getSmallImageKey(smallImageKey: string): string {
-    return smallImageKey.substr(smallImageKey.indexOf("_") + 1);
+  private getSmallImageKey(currentActivityMode: DestinyActivityModeDefinition): string {
+    const smallImage = Client.System.path.parse(currentActivityMode.displayProperties.icon).name;
+    return smallImage.substr(smallImage.indexOf("_") + 1);
   }
 
   private getLargeImageKey(currentActivity: DestinyActivityDefinition): string {
