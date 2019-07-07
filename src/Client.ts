@@ -11,7 +11,9 @@ import {
   DestinyActivityDefinition,
   DestinyActivityModeDefinition,
   DestinyPlaceDefinition,
-  DestinyClassDefinition
+  DestinyClassDefinition,
+  DestinyActivityModeType,
+  DestinyDestinationDefinition
 } from "bungie-api-ts/destiny2/interfaces";
 import { getFromBungie } from "./Utils";
 import { ServerResponse, PlatformErrorCodes } from "bungie-api-ts/common";
@@ -33,6 +35,8 @@ interface DestinyCharacterActivitiesComponentResponse {
 
 const PLACE_ORBIT = 2961497387;
 const ACTIVITY_TYPE_FORGE = 838603889;
+const ACTIVITY_TYPE_MENAGERIE = 400075666;
+const PLAYLIST_PRIVATE_GAMBIT = 2624692004;
 
 export class Client {
   public static System: System = DefaultSystem;
@@ -99,6 +103,10 @@ export class Client {
 
         if (currentActivityData.currentActivityHash != this.lastActivity) {
           const activityInfo = this.getActivityInfo(currentActivityData, currentCharacterData);
+          activityInfo.largeImageKey = this.sanitizeLargeImageKey(activityInfo.largeImageKey);
+          if (activityInfo.smallImageKey) {
+            activityInfo.smallImageKey = this.sanitizeSmallImageKey(activityInfo.smallImageKey);
+          }
           console.log(`\nNew activity:\n${activityInfo.details || ""}\n${activityInfo.state}`);
           this.discordRpc.setActivity(activityInfo);
           this.lastActivity = currentActivityData.currentActivityHash;
@@ -150,12 +158,12 @@ export class Client {
     currentActivityData: DestinyCharacterActivitiesComponent,
     currentCharacterData: DestinyCharacterComponent
   ): Presence {
-    let currentActivity = this.database.getFromDatabase<DestinyActivityDefinition>(
+    const currentActivity = this.database.getFromDatabase<DestinyActivityDefinition>(
       "DestinyActivityDefinition",
       currentActivityData.currentActivityHash
     );
 
-    if (currentActivity.placeHash == PLACE_ORBIT) {
+    if (this.isActivityOrbit(currentActivity)) {
       // Orbit has no additional data to show
       return {
         state: "In Orbit",
@@ -180,44 +188,140 @@ export class Client {
       currentCharacterData.classHash
     );
 
-    if (currentActivity.activityTypeHash == ACTIVITY_TYPE_FORGE) {
-      /*
-       * Forge activity defintions are for some reason rather sparse, but the
-       * playlist activity definition has more detail.
-       */
-      currentActivity = currentPlaylist;
-    }
+    const currentPlaylistDestination = this.database.getFromDatabase<DestinyDestinationDefinition>(
+      "DestinyDestinationDefinition",
+      currentPlaylist.destinationHash
+    );
 
-    let detailText;
-    if (
-      currentPlaylist.displayProperties.name &&
-      currentPlaylist.displayProperties.name != currentActivity.displayProperties.name &&
-      currentPlaylist.displayProperties.name != currentActivityMode.displayProperties.name
-    ) {
-      detailText = currentPlaylist.displayProperties.name + " \u2013 " + currentActivityMode.displayProperties.name;
-    } else {
-      detailText = currentActivityMode.displayProperties.name;
-    }
-    return {
-      state: currentActivity.displayProperties.name,
-      details: detailText,
-      largeImageKey: this.getLargeImageKey(currentActivity),
-      largeImageText: currentActivity.displayProperties.description || currentActivity.displayProperties.name,
-      smallImageKey: this.getSmallImageKey(currentActivityMode),
+    const currentActivityDestination = this.database.getFromDatabase<DestinyDestinationDefinition>(
+      "DestinyDestinationDefinition",
+      currentActivity.destinationHash
+    );
+    const activityInfo: Presence = {
       smallImageText: `${currentCharacterRace.displayProperties.name} \u2013 ${currentCharacterData.light}`,
       startTimestamp: Date.parse(currentActivityData.dateActivityStarted)
     };
+
+    if (this.isActivityPvp(currentActivity)) {
+      return {
+        ...activityInfo,
+        state: `${currentPlaylist.displayProperties.name} - ${currentActivityMode.displayProperties.name}`,
+        smallImageKey: currentActivityMode.displayProperties.icon,
+        largeImageKey: currentActivity.pgcrImage,
+        largeImageText: `${currentActivity.displayProperties.name} - ${currentActivity.displayProperties.description}`,
+        startTimestamp: Date.parse(currentActivityData.dateActivityStarted)
+      };
+    }
+
+    if (this.isActivityForge(currentActivity)) {
+      return {
+        ...activityInfo,
+        state: `${currentActivity.displayProperties.name} - ${currentPlaylist.displayProperties.name}`,
+        smallImageKey: currentPlaylist.displayProperties.icon,
+        largeImageKey: currentPlaylist.pgcrImage,
+        largeImageText: `${currentPlaylistDestination.displayProperties.name} - ${currentPlaylistDestination.displayProperties.description}`,
+        startTimestamp: Date.parse(currentActivityData.dateActivityStarted)
+      };
+    }
+
+    if (this.isActivityGambit(currentActivity)) {
+      return {
+        ...activityInfo,
+        state: `${currentPlaylist.hash === PLAYLIST_PRIVATE_GAMBIT ? "Gambit - " : ""}${
+          currentPlaylist.displayProperties.name
+        }`,
+        smallImageKey: currentActivityMode.displayProperties.icon,
+        largeImageKey: currentActivity.pgcrImage,
+        largeImageText: `${currentActivityDestination.displayProperties.name} - ${currentActivityDestination.displayProperties.description}`
+      };
+    }
+
+    if (this.isMenagerie(currentActivity)) {
+      return {
+        ...activityInfo,
+        state: currentActivity.displayProperties.name,
+        smallImageKey: currentActivity.displayProperties.icon,
+        largeImageKey: currentActivity.pgcrImage,
+        largeImageText: `${currentPlaylistDestination.displayProperties.name}`
+      };
+    }
+
+    if (this.isNightfall(currentActivity)) {
+      return {
+        ...activityInfo,
+        state: `Strike - ${currentActivity.displayProperties.name}`,
+        smallImageKey: currentActivity.displayProperties.icon,
+        largeImageKey: currentActivity.pgcrImage,
+        largeImageText: `${currentPlaylistDestination.displayProperties.name} - ${currentPlaylistDestination.displayProperties.description}`
+      };
+    }
+
+    if (this.isStrike(currentActivity)) {
+      return {
+        ...activityInfo,
+        state: currentActivity.displayProperties.name.replace(":", " -"),
+        smallImageKey: currentActivity.displayProperties.icon,
+        largeImageKey: currentActivity.pgcrImage,
+        largeImageText: `${currentPlaylistDestination.displayProperties.name} - ${currentPlaylistDestination.displayProperties.description}`
+      };
+    }
+
+    return {
+      ...activityInfo,
+      state: `${currentActivityMode.displayProperties.name} - ${
+        currentPlaylist.displayProperties.name
+          ? currentPlaylist.displayProperties.name
+          : currentActivity.displayProperties.name
+      }`,
+      smallImageKey: currentActivityMode.displayProperties.icon,
+      largeImageText: `${currentPlaylistDestination.displayProperties.name} - ${currentPlaylistDestination.displayProperties.description}`,
+      largeImageKey: currentActivity.pgcrImage
+    };
   }
 
-  private getSmallImageKey(currentActivityMode: DestinyActivityModeDefinition): string {
-    const smallImage = Client.System.path.parse(currentActivityMode.displayProperties.icon).name;
+  private isStrike(currentActivity: DestinyActivityDefinition): boolean {
+    return currentActivity.activityModeTypes.includes(DestinyActivityModeType.AllStrikes);
+  }
+
+  private isNightfall(currentActivity: DestinyActivityDefinition): boolean {
+    const nightfallTypeIds = [16, 17, 46, 47];
+    return currentActivity.activityModeTypes.some(activityType =>
+      nightfallTypeIds.some(nightfallType => activityType === nightfallType)
+    );
+  }
+
+  private isMenagerie(currentActivity: DestinyActivityDefinition): boolean {
+    return currentActivity.activityTypeHash == ACTIVITY_TYPE_MENAGERIE;
+  }
+
+  private isActivityGambit(currentActivity: DestinyActivityDefinition): boolean {
+    return (
+      currentActivity.activityModeTypes.includes(DestinyActivityModeType.Gambit) ||
+      currentActivity.activityModeTypes.includes(DestinyActivityModeType.GambitPrime)
+    );
+  }
+
+  private isActivityForge(currentActivity: DestinyActivityDefinition): boolean {
+    return currentActivity.activityTypeHash == ACTIVITY_TYPE_FORGE;
+  }
+
+  private isActivityPvp(currentActivity: DestinyActivityDefinition): boolean {
+    return currentActivity.activityModeTypes.includes(DestinyActivityModeType.AllPvP);
+  }
+
+  private isActivityOrbit(currentActivity: DestinyActivityDefinition): boolean {
+    return currentActivity.placeHash == PLACE_ORBIT;
+  }
+
+  private sanitizeSmallImageKey(smallImageKey: string): string {
+    const smallImage = Client.System.path.parse(smallImageKey).name;
     return smallImage.substr(smallImage.indexOf("_") + 1);
   }
 
-  private getLargeImageKey(currentActivity: DestinyActivityDefinition): string {
-    return currentActivity.pgcrImage
+  private sanitizeLargeImageKey(largeImageKey: string): string {
+    return largeImageKey !== "default_large"
       ? createHash("md5")
-          .update(Client.System.path.parse(currentActivity.pgcrImage).name)
+          .update(Client.System.path.parse(largeImageKey).name)
           .digest("hex")
       : "default_large";
   }
