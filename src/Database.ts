@@ -7,7 +7,8 @@ import {
   DestinyActivityDefinition,
   DestinyActivityModeDefinition,
   DestinyPlaceDefinition,
-  DestinyClassDefinition
+  DestinyClassDefinition,
+  DestinyDestinationDefinition
 } from "bungie-api-ts/destiny2";
 import { get } from "request-promise-native";
 const LOCALE = "en";
@@ -16,7 +17,8 @@ type DestinyRecord =
   | DestinyActivityDefinition
   | DestinyActivityModeDefinition
   | DestinyPlaceDefinition
-  | DestinyClassDefinition;
+  | DestinyClassDefinition
+  | DestinyDestinationDefinition;
 
 export class Database {
   public static System: System = DefaultSystem;
@@ -26,7 +28,7 @@ export class Database {
   private databaseName: string;
   private sqlDatabase: {
     [table: string]: {
-      [hash: string]: Record<string, DestinyRecord>;
+      [hash: string]: DestinyRecord;
     };
   };
 
@@ -42,7 +44,7 @@ export class Database {
     );
   }
 
-  public getFromDatabase<T extends { [hash: string]: DestinyRecord }>(table: string, hash: number): T {
+  public getFromDatabase<T extends DestinyRecord>(table: string, hash: number): T {
     if (this.sqlDatabase.hasOwnProperty(table) && this.sqlDatabase[table].hasOwnProperty(hash.toString())) {
       return this.sqlDatabase[table][hash.toString()] as T;
     }

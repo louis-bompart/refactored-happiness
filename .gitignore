@@ -68,3 +68,6 @@ bin/
 
 out/
 .webpack/
+
+# Icon directory
+generated_icons/

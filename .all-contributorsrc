@@ -51,6 +51,24 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "axelgreavette",
+      "name": "Axel Greavette",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/31705527?v=4",
+      "profile": "https://axelg.xyz",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "mrphlip",
+      "name": "Phillip",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/734414?v=4",
+      "profile": "http://www.mrphlip.com/",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7
