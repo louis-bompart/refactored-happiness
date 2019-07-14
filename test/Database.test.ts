@@ -55,7 +55,6 @@ describe("Database", () => {
       return latestSqliteDatabaseStub;
     });
 
-    Database.DatabaseDriver = sqliteFakeConstructor;
     Database.System.fs = {
       ...fs,
       createWriteStream: sandbox.stub(fs, "createWriteStream"),
@@ -82,10 +81,10 @@ describe("Database", () => {
 
     it("should get the manifest no matter what", async () => {
       try {
-        await Database.getInstance("database/path", "apikey");
+        await Database.getInstance("database/path");
       } catch (e) {
       } finally {
-        expect(getFromBungieStub).to.be.calledWith({ uri: "Destiny2/Manifest/" }, "apikey");
+        expect(getFromBungieStub).to.be.calledWith({ uri: "Destiny2/Manifest/" });
       }
     });
 
@@ -113,9 +112,9 @@ describe("Database", () => {
       });
 
       it("should download it", async () => {
-        await Database.getInstance("database/path", "apikey");
+        await Database.getInstance("database/path");
 
-        expect(getFromBungieStub).to.be.calledWith({ uri: "Destiny2/Manifest/" }, "apikey");
+        expect(getFromBungieStub).to.be.calledWith({ uri: "Destiny2/Manifest/" });
         expect(requestGetStub).to.be.calledWith(
           `https://Bungie.net${fakeDatabaseUri}`,
           Sinon.match.has("encoding", null)
@@ -136,7 +135,7 @@ describe("Database", () => {
         });
 
         it("should not throw", async () => {
-          await Database.getInstance("database/path", "apikey")
+          await Database.getInstance("database/path")
             .then(() => {
               expect(true).to.be.ok;
             })
@@ -154,7 +153,7 @@ describe("Database", () => {
         });
 
         it("should throw", async () => {
-          await Database.getInstance("database/path", "apikey")
+          await Database.getInstance("database/path")
             .then(() => {
               expect.fail("has not thrown an error");
             })
@@ -189,7 +188,7 @@ describe("Database", () => {
       });
 
       it("should delete the deprecated version and download the most recent one", async () => {
-        await Database.getInstance("database/path", "apikey");
+        await Database.getInstance("database/path");
 
         expect(getFromBungieStub).to.be.calledWith({ uri: "Destiny2/Manifest/" }, "apikey");
         expect(requestGetStub).to.be.calledWith(
@@ -217,7 +216,7 @@ describe("Database", () => {
       });
 
       it("should use the cache", async () => {
-        await Database.getInstance("database/path", "apikey");
+        await Database.getInstance("database/path");
         expect(getFromBungieStub).to.be.calledWith({ uri: "Destiny2/Manifest/" }, "apikey");
         expect(requestGetStub).to.not.be.called;
       });
@@ -234,7 +233,7 @@ describe("Database", () => {
       });
 
       it("should throw if the download fail", async () => {
-        await Database.getInstance("database/path", "apikey")
+        await Database.getInstance("database/path")
           .then(() => {
             expect.fail();
           })
@@ -254,7 +253,7 @@ describe("Database", () => {
     });
 
     it("call sqlite with the proper argument and it should parse the response accordingly", async () => {
-      const databaseInstance = await Database.getInstance("somePath", "myapikey");
+      const databaseInstance = await Database.getInstance("somePath");
       const sqliteGetStub = sandbox.stub();
       const testResponse = { foo: "bar" };
 
