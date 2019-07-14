@@ -59,9 +59,3 @@ app.on("second-instance", (_event, argv) => {
     mainWindow.focus();
   }
 });
-
-// Launch fullscreen with DevTools open, usage: npm run debug
-if (true) {
-  mainWindow.webContents.openDevTools();
-  mainWindow.maximize();
-}

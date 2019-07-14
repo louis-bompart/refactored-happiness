@@ -210,7 +210,7 @@ export class Client {
         state: "In Orbit",
         largeImageKey: "default_large",
         largeImageText: "In Orbit",
-        startTimestamp: Date.parse(currentActivityData.dateActivityStarted)
+        startTimestamp: Date.now() // Bungie does not restart the timer...
       };
     }
 
