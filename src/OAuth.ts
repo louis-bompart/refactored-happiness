@@ -57,7 +57,7 @@ export class OAuthClient {
         OAuthClient.System.os.userInfo().username
       );
       if (refreshToken && refreshTokenExpiration && membershipId) {
-        this.instance = new OAuthClient(refreshToken, parseInt(refreshTokenExpiration), membershipId);
+        this.instance = new OAuthClient(refreshToken, parseInt(refreshTokenExpiration, 10), membershipId);
       } else {
         this.instance = new OAuthClient();
       }
@@ -157,6 +157,11 @@ export class OAuthClient {
   }
 
   private async getNewAccessToken(authorizationCode: string): Promise<TokenResponse> {
+    const form: { grant_type: string; code: string } = { grant_type: "authorization_code", code: authorizationCode };
+    return this.queryAccessTokenEndpoint(form);
+  }
+
+  private queryAccessTokenEndpoint(form: { grant_type: string; code?: string; refresh_token?: string }) {
     const accessTokenUrl = new URL("https://www.bungie.net/platform/app/oauth/token/");
     const authorizationHeader = `Basic ${Buffer.from(
       `${bungieApplicationSecrets.clientId}:${bungieApplicationSecrets.clientSecret}`
@@ -167,24 +172,16 @@ export class OAuthClient {
         "Content-Type": "application/x-www-form-urlencoded",
         Authorization: authorizationHeader
       },
-      form: { grant_type: "authorization_code", code: authorizationCode }, // eslint-disable-line @typescript-eslint/camelcase
+      form: form,
       json: true
     });
   }
 
   private async refreshAccessToken(): Promise<TokenResponse> {
-    const accessTokenUrl = new URL("https://www.bungie.net/platform/app/oauth/token/");
-    const authorizationHeader = `Basic ${Buffer.from(
-      `${bungieApplicationSecrets.clientId}:${bungieApplicationSecrets.clientSecret}`
-    ).toString("base64")}`;
-    return request(accessTokenUrl.toString(), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: authorizationHeader
-      },
-      form: { grant_type: "refresh_token", refresh_token: this.refreshToken }, // eslint-disable-line @typescript-eslint/camelcase
-      json: true
-    });
+    const form: { grant_type: string; refresh_token: string } = {
+      grant_type: "refresh_token",
+      refresh_token: this.refreshToken
+    };
+    return this.queryAccessTokenEndpoint(form);
   }
 }
