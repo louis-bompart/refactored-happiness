@@ -75,7 +75,6 @@
     "node-loader": "^0.6.0",
     "nyc": "^14.1.1",
     "open": "^6.4.0",
-    "pkg": "^4.4.0",
     "prettier": "^1.18.2",
     "register-scheme": "0.0.2",
     "request-promise-native": "^1.0.7",
