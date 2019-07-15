@@ -1,3 +1,5 @@
+/* istanbul ignore file: TODO */
+
 import { app } from "electron";
 import path from "path";
 

@@ -1,9 +1,14 @@
+/* istanbul ignore file: TODO */
+
 import { app, BrowserWindow } from "electron";
 import * as path from "path";
 import { OAuthClient } from "./OAuth";
 import { initProtocolHandling } from "./protocol";
 import { foo } from "./index";
 let mainWindow: Electron.BrowserWindow;
+if (require("electron-squirrel-startup")) {
+  app.quit();
+}
 
 const windowsOption = {
   width: 1080,
@@ -27,6 +32,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 }
 initProtocolHandling();
+require("update-electron-app")();
 
 app.on("ready", () => {
   createWindow();
