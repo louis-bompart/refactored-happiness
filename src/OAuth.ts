@@ -160,7 +160,7 @@ export class OAuthClient {
     /* eslint-disable  @typescript-eslint/camelcase */
     const form: { grant_type: string; code: string } = { grant_type: "authorization_code", code: authorizationCode };
     /* eslint-enable  @typescript-eslint/camelcase */
-    return await this.queryAccessTokenEndpoint(form);
+    return this.queryAccessTokenEndpoint(form);
   }
 
   private async queryAccessTokenEndpoint(form: {
@@ -190,6 +190,6 @@ export class OAuthClient {
       refresh_token: this.refreshToken
     };
     /* eslint-enable  @typescript-eslint/camelcase */
-    return await this.queryAccessTokenEndpoint(form);
+    return this.queryAccessTokenEndpoint(form);
   }
 }
