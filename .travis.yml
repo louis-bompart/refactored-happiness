@@ -5,7 +5,8 @@ node_js:
 jobs:
   include:
     - stage: Test
-      if: tag IS blank  
+      if: tag IS blank 
+      before_install: sudo apt-get install libsecret-1-dev
       script:
         - npm run lint
         - npm test
@@ -23,6 +24,7 @@ jobs:
     - stage: Build and Deploy
       if: (NOT type IN (pull_request)) AND tag IS present
       os: linux
+      before_install: sudo apt-get install libsecret-1-dev
       before_deploy: echo "{\"apiKey\":\"$BUNGIE_API_KEY\",\"clientId\":\"$BUNGIE_CLIENT_ID\",\"clientSecret\":\"$BUNGIE_CLIENT_SECRET\"}" > config/bungieApp.json
       deploy:
         provider: script
