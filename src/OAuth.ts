@@ -157,16 +157,22 @@ export class OAuthClient {
   }
 
   private async getNewAccessToken(authorizationCode: string): Promise<TokenResponse> {
+    /* eslint-disable  @typescript-eslint/camelcase */
     const form: { grant_type: string; code: string } = { grant_type: "authorization_code", code: authorizationCode };
-    return this.queryAccessTokenEndpoint(form);
+    /* eslint-enable  @typescript-eslint/camelcase */
+    return await this.queryAccessTokenEndpoint(form);
   }
 
-  private queryAccessTokenEndpoint(form: { grant_type: string; code?: string; refresh_token?: string }) {
+  private async queryAccessTokenEndpoint(form: {
+    grant_type: string;
+    code?: string;
+    refresh_token?: string;
+  }): Promise<TokenResponse> {
     const accessTokenUrl = new URL("https://www.bungie.net/platform/app/oauth/token/");
     const authorizationHeader = `Basic ${Buffer.from(
       `${bungieApplicationSecrets.clientId}:${bungieApplicationSecrets.clientSecret}`
     ).toString("base64")}`;
-    return request(accessTokenUrl.toString(), {
+    return (await request(accessTokenUrl.toString(), {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -174,14 +180,16 @@ export class OAuthClient {
       },
       form: form,
       json: true
-    });
+    })) as TokenResponse;
   }
 
   private async refreshAccessToken(): Promise<TokenResponse> {
+    /* eslint-disable  @typescript-eslint/camelcase */
     const form: { grant_type: string; refresh_token: string } = {
       grant_type: "refresh_token",
       refresh_token: this.refreshToken
     };
-    return this.queryAccessTokenEndpoint(form);
+    /* eslint-enable  @typescript-eslint/camelcase */
+    return await this.queryAccessTokenEndpoint(form);
   }
 }
